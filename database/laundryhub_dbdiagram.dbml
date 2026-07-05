@@ -1,0 +1,140 @@
+Project laundryhub {
+  database_type: "MySQL"
+}
+
+Table users {
+  id bigint [pk, increment]
+  role varchar(20) [not null, note: "owner, admin, kasir, customer"]
+  name varchar(120) [not null]
+  email varchar(160) [not null, unique]
+  password_hash varchar(255) [not null]
+  phone varchar(30)
+  address text
+  avatar_url text
+  two_step_enabled tinyint [not null, default: 0]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: null]
+}
+
+Table service_packages {
+  id bigint [pk, increment]
+  name varchar(120) [not null]
+  price_per_kg decimal(12,2) [not null]
+  duration_hours int [not null]
+  description text
+  active tinyint [not null, default: 1]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table company_settings {
+  id bigint [pk, increment]
+  setting_key varchar(80) [not null, unique]
+  setting_value varchar(255) [not null]
+}
+
+Table company_bank_accounts {
+  id bigint [pk, increment]
+  bank varchar(80) [not null]
+  account_no varchar(80) [not null]
+  account_name varchar(160) [not null]
+  active tinyint [not null, default: 1]
+  created_by bigint
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table orders {
+  id bigint [pk, increment]
+  order_code varchar(30) [not null, unique]
+  customer_id bigint [not null]
+  package_id bigint [not null]
+  customer_name varchar(120) [not null]
+  phone varchar(30) [not null]
+  pickup_address text [not null]
+  weight_kg decimal(8,2) [not null]
+  total decimal(12,2) [not null]
+  source varchar(20) [not null, default: "online", note: "kasir, online"]
+  status varchar(30) [not null, default: "diterima", note: "diterima, dicuci, disetrika, siap, diantar, selesai, batal"]
+  pickup_at datetime [not null]
+  due_at datetime [not null]
+  delivery_at datetime
+  paid tinyint [not null, default: 0]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (pickup_at, status) [name: "idx_orders_pickup_status"]
+  }
+}
+
+Table payments {
+  id bigint [pk, increment]
+  order_id bigint [not null]
+  method varchar(30) [not null, note: "tunai, kartu, qris, transfer_bank"]
+  amount decimal(12,2) [not null]
+  company_bank_account_id bigint
+  provider_reference varchar(160)
+  status varchar(20) [not null, default: "menunggu", note: "menunggu, berhasil, gagal"]
+  paid_at datetime
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table ledger_entries {
+  id bigint [pk, increment]
+  type varchar(30) [not null, note: "modal, pendapatan, pembelian, gaji"]
+  amount decimal(12,2) [not null]
+  detail text [not null]
+  payment_id bigint
+  employee_id bigint
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table inventory_items {
+  id bigint [pk, increment]
+  name varchar(120) [not null]
+  unit varchar(30) [not null]
+  qty decimal(12,2) [not null, default: 0]
+  min_qty decimal(12,2) [not null, default: 0]
+  purchase_price decimal(12,2) [not null, default: 0]
+  supplier varchar(160)
+}
+
+Table delivery_tasks {
+  id bigint [pk, increment]
+  order_id bigint [not null]
+  courier_id bigint
+  task_type varchar(20) [not null, note: "jemput, antar"]
+  address text [not null]
+  scheduled_at datetime [not null]
+  status varchar(20) [not null, default: "terjadwal", note: "terjadwal, berjalan, selesai"]
+}
+
+Table chat_messages {
+  id bigint [pk, increment]
+  customer_id bigint [not null]
+  sender_id bigint
+  sender_role varchar(20) [not null, note: "customer, admin, kasir"]
+  body text [not null]
+  read_at datetime
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table audit_logs {
+  id bigint [pk, increment]
+  user_id bigint
+  module varchar(80) [not null]
+  action varchar(40) [not null]
+  detail text [not null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Ref: company_bank_accounts.created_by > users.id
+Ref: orders.customer_id > users.id
+Ref: orders.package_id > service_packages.id
+Ref: payments.order_id > orders.id
+Ref: payments.company_bank_account_id > company_bank_accounts.id
+Ref: ledger_entries.payment_id > payments.id
+Ref: ledger_entries.employee_id > users.id
+Ref: delivery_tasks.order_id > orders.id
+Ref: delivery_tasks.courier_id > users.id
+Ref: chat_messages.customer_id > users.id
+Ref: chat_messages.sender_id > users.id
+Ref: audit_logs.user_id > users.id
